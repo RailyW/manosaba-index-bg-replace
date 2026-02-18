@@ -2,7 +2,6 @@
 
 《魔法少女的魔女审判》首页背景切换工具。
 
-- 修改 `2_1.bundle` 内部的背景贴图资源；
 - 在二周目时，也可以显示一周目的首页背景（艾玛）；
 - 支持恢复回原本的二周目背景（希罗）。
 
@@ -39,20 +38,27 @@ E:\game\steam\steamapps\common\manosaba_game
 ```
 
 2. 选择背景人物：
-   - `1` / `艾玛`：将 `1_1.bundle` 的背景贴图写入 `2_1.bundle`
-   - `2` / `希罗`：从备份恢复 `2_1.bundle`
+   - `1` / `艾玛`
+   - `2` / `希罗`
 
 ---
 
 ## 变更规则
 
+脚本会修改并备份这个文件：
+
+```text
+manosaba_game\manosaba_Data\StreamingAssets\aa\StandaloneWindows64\naninovel-scripts_assets_naninovelscripts-system.bundle
+```
+
 - 第一次选择“艾玛”时，脚本会先备份：
-  - `2_1.bundle` → `2_1.bundle.backup`
-- 如果已经存在 `2_1.bundle.backup`，脚本会**跳过备份，不会覆盖旧备份**。
+  - `naninovel-scripts_assets_naninovelscripts-system.bundle`
+  - `-> naninovel-scripts_assets_naninovelscripts-system.bundle.backup`
+- 如果备份已存在，脚本会**跳过覆盖**，确保历史原始备份不被重复改写。
 
 当你选择“希罗”时：
-- 若存在 `2_1.bundle.backup`，会恢复到 `2_1.bundle`。
-- 若不存在备份，会提示：当前未发生过替换，二周目本身就是希罗，无需替换。
+- 若存在 `.backup`，会恢复原脚本 bundle。
+- 若不存在备份，会提示当前未发生过替换，标题本身即按原始逻辑显示。
 
 ---
 
@@ -62,8 +68,8 @@ E:\game\steam\steamapps\common\manosaba_game
 ### Q1：提示找不到目录/文件？
 请确认你输入的是**游戏根目录**（`manosaba_game`），而不是更深层目录。
 
-### Q2：游戏文件保存在？
+### Q2：脚本会修改哪个文件？
 
 ```text
-manosaba_game\manosaba_Data\StreamingAssets\aa\StandaloneWindows64\naninovel-backgrounds_assets_naninovel\backgrounds\stills
+manosaba_game\manosaba_Data\StreamingAssets\aa\StandaloneWindows64\naninovel-scripts_assets_naninovelscripts-system.bundle
 ```
