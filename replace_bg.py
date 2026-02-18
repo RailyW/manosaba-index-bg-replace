@@ -4,6 +4,7 @@ import shutil
 import sys
 import tempfile
 from pathlib import Path
+from typing import Any
 
 import UnityPy
 
@@ -32,8 +33,8 @@ def prompt_game_root() -> Path:
 
 def prompt_choice() -> str:
     print("\n请选择标题背景人物：")
-    print("  1) 艾玛（仅改标题脚本表达式，不改 2_1.bundle 图像）")
-    print("  2) 希罗（恢复标题脚本 bundle 备份）")
+    print("  1) 艾玛")
+    print("  2) 希罗")
     while True:
         c = input("> ").strip().lower()
         if c in {"1", "艾玛", "emma", "a"}:
@@ -73,8 +74,18 @@ def get_title_script_reader(env):
     raise RuntimeError("未找到 System_Title.nani 对应的对象读取器。")
 
 
+def load_bundle_env_without_lock(bundle_path: Path) -> Any:
+    """
+    通过先读入 bytes 再交给 UnityPy.load，避免 UnityPy 直接持有目标文件句柄，
+    从而导致 Windows 下 os.replace 时触发 WinError 5。
+    """
+    with open(bundle_path, "rb") as f:
+        raw = f.read()
+    return UnityPy.load(raw)
+
+
 def patch_title_expression(script_bundle: Path, mode: str) -> int:
-    env = UnityPy.load(str(script_bundle))
+    env = load_bundle_env_without_lock(script_bundle)
     reader = get_title_script_reader(env)
     tree = reader.read_typetree()
 
@@ -134,8 +145,7 @@ def patch_title_expression(script_bundle: Path, mode: str) -> int:
         if os.path.exists(tmp_name):
             os.remove(tmp_name)
         raise RuntimeError(
-            "写入失败（拒绝访问）。请先关闭游戏进程和可能占用该文件的程序后重试；"
-            "若仍失败，请以管理员权限运行终端再执行脚本。"
+            "写入失败（拒绝访问）。请先关闭游戏进程和可能占用该文件的程序后重试"
         ) from e
     except Exception:
         if os.path.exists(tmp_name):
@@ -153,8 +163,7 @@ def apply_emma(script_bundle: Path, script_backup: Path) -> None:
         print(f"检测到已存在备份，跳过覆盖：{script_backup}")
 
     changed = patch_title_expression(script_bundle, mode="emma")
-    print(f"已完成：标题脚本中 {changed} 处表达式改为艾玛（\"1_1\"）。")
-    print("说明：此方案不会改动 2_1.bundle 图像，因此不会影响 CG 鉴赏页面。")
+    print(f"已完成：标题菜单背景已更改为艾玛。")
 
 
 def apply_shiro(script_bundle: Path, script_backup: Path) -> None:
@@ -164,7 +173,7 @@ def apply_shiro(script_bundle: Path, script_backup: Path) -> None:
         return
 
     shutil.copy2(script_backup, script_bundle)
-    print(f"已恢复：{SCRIPT_BUNDLE_NAME} <- {script_backup.name}（希罗/原始逻辑）。")
+    print(f"已完成：标题菜单背景已更改为希罗。")
 
 
 def main() -> int:
