@@ -19,6 +19,10 @@ SHIRO_EXPR = 'g_gameProgress < 6 ? "1_1" : "2_1"'
 EMMA_EXPR = '"1_1"'
 
 
+class UserFacingError(Exception):
+    """用于输出给普通用户的简洁错误信息。"""
+
+
 def prompt_game_root() -> Path:
     raw = input("请输入游戏根目录（例如 E:\\game\\steam\\steamapps\\common\\manosaba_game）：\n> ").strip()
     raw = raw.strip('"').strip("'")
@@ -84,7 +88,7 @@ def load_bundle_env_without_lock(bundle_path: Path) -> Any:
     return UnityPy.load(raw)
 
 
-def patch_title_expression(script_bundle: Path, mode: str) -> int:
+def patch_title_expression(script_bundle: Path, mode: str) -> str:
     env = load_bundle_env_without_lock(script_bundle)
     reader = get_title_script_reader(env)
     tree = reader.read_typetree()
@@ -101,6 +105,8 @@ def patch_title_expression(script_bundle: Path, mode: str) -> int:
         raise ValueError(f"未知模式：{mode}")
 
     changed = 0
+    already = 0
+    candidate_found = 0
     for ref in refs:
         cls = ref.get("type", {}).get("class", "")
         if cls != "ModifyBackgroundExtended":
@@ -115,14 +121,28 @@ def patch_title_expression(script_bundle: Path, mode: str) -> int:
 
         part0 = parts[0]
         expr = str(part0.get("expression", "")).strip()
-        # 只改与标题背景选择相关的那两条动态表达式
-        if "g_gameProgress" in expr and '"1_1"' in expr and '"2_1"' in expr:
-            if expr != target_expr:
-                part0["expression"] = target_expr
-                changed += 1
+        is_dynamic_rule = ("g_gameProgress" in expr and '"1_1"' in expr and '"2_1"' in expr)
+        is_emma_rule = (expr == EMMA_EXPR)
+        is_shiro_rule = (expr == SHIRO_EXPR)
 
-    if changed == 0 and mode == "emma":
-        raise RuntimeError("未找到可改写为艾玛的目标表达式，可能已被改动或游戏版本结构不同。")
+        # 仅处理与标题背景切换相关的表达式
+        if not (is_dynamic_rule or is_emma_rule or is_shiro_rule):
+            continue
+
+        candidate_found += 1
+
+        if expr == target_expr:
+            already += 1
+            continue
+
+        part0["expression"] = target_expr
+        changed += 1
+
+    if candidate_found == 0:
+        raise UserFacingError("未找到可修改的标题背景规则，可能与当前游戏版本不兼容。")
+
+    if changed == 0 and already > 0:
+        return "already"
 
     # 写回 typetree 并保存 bundle
     reader.save_typetree(tree)
@@ -152,28 +172,37 @@ def patch_title_expression(script_bundle: Path, mode: str) -> int:
             os.remove(tmp_name)
         raise
 
-    return changed
+    return "changed"
 
 
 def apply_emma(script_bundle: Path, script_backup: Path) -> None:
+    modified_files = []
     if not script_backup.exists():
         shutil.copy2(script_bundle, script_backup)
-        print(f"已创建备份：{script_backup}")
+        modified_files.append(script_backup.name)
+        print(f"备份完成：{script_backup.name}")
     else:
-        print(f"检测到已存在备份，跳过覆盖：{script_backup}")
+        print(f"备份已存在：{script_backup.name}（已跳过）")
 
-    changed = patch_title_expression(script_bundle, mode="emma")
-    print(f"已完成：标题菜单背景已更改为艾玛。")
+    result = patch_title_expression(script_bundle, mode="emma")
+    if result == "already":
+        print("当前标题背景已是艾玛，无需替换。")
+    else:
+        modified_files.append(script_bundle.name)
+        print("替换完成：标题菜单背景已更改为艾玛。")
+
+    if modified_files:
+        print("本次变更文件：" + "、".join(modified_files))
 
 
 def apply_shiro(script_bundle: Path, script_backup: Path) -> None:
     if not script_backup.exists():
-        print(f"未找到 {script_backup.name}。")
-        print("当前脚本文件未发生过替换，标题本身即按游戏进度显示希罗，无需恢复。")
+        print("当前标题背景已是希罗（原始逻辑），无需恢复。")
         return
 
     shutil.copy2(script_backup, script_bundle)
-    print(f"已完成：标题菜单背景已更改为希罗。")
+    print("恢复完成：标题菜单背景已更改为希罗。")
+    print("本次变更文件：" + script_bundle.name)
 
 
 def main() -> int:
@@ -181,7 +210,7 @@ def main() -> int:
         game_root = prompt_game_root()
         script_bundle, script_backup = validate_paths(game_root)
 
-        print(f"\n目标脚本 bundle：{script_bundle}")
+        print(f"\n目标文件：{script_bundle.name}")
         choice = prompt_choice()
 
         if choice == "emma":
@@ -194,8 +223,11 @@ def main() -> int:
     except KeyboardInterrupt:
         print("\n用户取消操作。")
         return 1
-    except Exception as e:
-        print(f"\n发生错误：{e}")
+    except UserFacingError as e:
+        print(f"\n操作失败：{e}")
+        return 1
+    except Exception:
+        print("\n操作失败：请确认游戏已关闭，然后重试。")
         return 1
 
 
