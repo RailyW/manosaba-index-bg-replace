@@ -2,8 +2,7 @@
 
 《魔法少女的魔女审判》首页背景切换工具。
 
-它的作用是：
-- 在**不直接整文件替换 bundle** 的前提下，修改 `2_1.bundle` 内部的背景贴图资源；
+- 修改 `2_1.bundle` 内部的背景贴图资源；
 - 在二周目时，也可以显示一周目的首页背景（艾玛）；
 - 支持恢复回原本的二周目背景（希罗）。
 
@@ -12,6 +11,7 @@
 ## 运行前准备
 
 ### 1) Python 环境
+
 建议 Python 3.10+。
 
 ### 2) 安装依赖
@@ -44,7 +44,7 @@ E:\game\steam\steamapps\common\manosaba_game
 
 ---
 
-## 备份与恢复规则（很重要）
+## 变更规则
 
 - 第一次选择“艾玛”时，脚本会先备份：
   - `2_1.bundle` → `2_1.bundle.backup`
@@ -64,6 +64,6 @@ E:\game\steam\steamapps\common\manosaba_game
 
 ### Q2：游戏文件保存在？
 
-```bash
+```text
 manosaba_game\manosaba_Data\StreamingAssets\aa\StandaloneWindows64\naninovel-backgrounds_assets_naninovel\backgrounds\stills
 ```
